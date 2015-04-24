@@ -1,0 +1,40 @@
+from database import mydb
+
+class register(object):
+    def __init__(self):
+        self.regdb = mydb('localhost',27017)
+        self.regdb.use('devilbox')
+        self.regdb.setCollection('register')
+    
+
+    def sign_up(self, username, password):
+        if self.regdb.exist({'username':username}) == True:
+            print('Sign up fail: User already exists.')
+            return False
+        else:
+            self.regdb.insert({'username':username, 'password':password})
+            print(username + ' sign up successfully.')
+            return True
+    
+    def login(self, username, password):
+        if self.regdb.exist({'username':username}) == False:
+            print('Login fail: User not exist')
+            return False
+        else:
+            result = self.regdb.find_one({'username':username})
+            if result['password'] != password:
+                print('Login fail: Incorrect password.')
+                return False
+            else:
+                print(username + ' login successfully')
+                return True
+            
+        
+    def delete_user(self, username):
+        if self.regdb.exist({'username':username}) == False:
+            print('Delete user fail: user not exist.')
+            return False
+        else:
+            self.regdb.remove({'username':username})
+            print('Delete user:' + username + ' successfully.')
+        
