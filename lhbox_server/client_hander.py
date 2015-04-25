@@ -101,37 +101,62 @@ class Client_handler(threading.Thread):
         action_dir_name = task['action'].dir_name
         action_filename = task['action'].filename
         if task['source'] == 'self':
-            if action_type == 'CRT':
+            if action_type == 'CRT' and action_object == 'D':
                 #create new directory, create a new bucket
-                if action_object == 'D':
-                    if action_dir_name == '.':
-                        bucket = self.create_dir(action_filename)
-                        self.connect1.send('upload D '+action_filename+' '+bucket)
-                    else:
-                        bucket =self.create_dir(action_dir_name+'/'+action_filename)
-                        self.connect1.send('upload D '+action_dir_name+'/'+action_filename+' '+bucket)
-                    response = self.connect1.recv(1024)
-                    if response == 'ack':
-                        self.task_queue.pop()                                
-                elif action_object == 'F':
-                    if action_dir_name == '.':
-                        bucket = self.au.find_bucket(action_dir_name)
-                        self.connect1.send('upload F '+action_filename+' '+bucket)
-                    else:
-                        bucket = self.au.find_bucket(action_dir_name)
-                        self.connect1.send('upload F '+action_dir_name+'/'+action_filename+' '+bucket)
-                
-       
-            elif action_type == 'MOD':
-                #mod action's object must be file
+                if action_dir_name == '.':
+                    bucket = self.create_dir(action_filename)
+                    self.connect1.send('upload D '+action_filename+' '+bucket)
+                else:
+                    bucket =self.create_dir(action_dir_name+'/'+action_filename)
+                    self.connect1.send('upload D '+action_dir_name+'/'+action_filename+' '+bucket)
+
+            elif (action_type == 'CRT' or action_type == 'MOD') and action_object == 'F':
                 if action_dir_name == '.':
                     bucket = self.au.find_bucket(action_dir_name)
                     self.connect1.send('upload F '+action_filename+' '+bucket)
                 else:
-                    bucket = self.au.find_bucket(action_dir_name)
+                    bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
                     self.connect1.send('upload F '+action_dir_name+'/'+action_filename+' '+bucket)
+       
+            elif action_type == 'DEL':
+                pass
+
+            response = self.connect1.recv(1024)
+            if response == 'ack':
+                self.lock.acquire()
+                self.task_queue.pop()
+                self.lock.release()
+                self.share_task(task)
 
         elif task['source'] == 'share':
+            if action_type == 'CRT' and action_object == 'D':
+                #create new directory, create a new bucket
+                if action_dir_name == '.':
+                    bucket = self.create_dir(action_filename)
+                    self.connect1.send('download D '+action_filename+' '+bucket)
+                else:
+                    bucket =self.create_dir(action_dir_name+'/'+action_filename)
+                    self.connect1.send('download D '+action_dir_name+'/'+action_filename+' '+bucket)
+
+            elif (action_type == 'CRT' or action_type == 'MOD') and action_object == 'F':
+                if action_dir_name == '.':
+                    bucket = self.au.find_bucket(action_dir_name)
+                    self.connect1.send('download F '+action_filename+' '+bucket+' '+action_filename)
+                else:
+                    bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
+                    self.connect1.send('download F '+action_dir_name+'/'+action_filename+' '+bucket)
+       
+            elif action_type == 'DEL':
+                pass
+
+            response = self.connect1.recv(1024)
+            if response == 'Download finished':
+                while self.task_queue.check_conflict() == False:
+                    pass
+                self.connect1.send('apply')
+                self.lock.acquire()
+                self.task_queue.pop()
+                self.lock.release()
             
             
             
@@ -145,11 +170,16 @@ class Client_handler(threading.Thread):
         #port 8001 is responsible for receiving request
         while True:
             action = self.connect2.recv(1024)
+            tmp_act = Action(action)
             print('Receive a request.')
             self.lock.acquire()
             if self.task_queue.push(action) == False:
-                self.lock.release()
+
                 self.connect2.send('conflict')
+                response = self.connect2.recv(1024)
+                if response == 'ok':
+                    self.task_queue.delete_last()
+                self.lock.release()                    
             else:
                 self.lock.release()
                 self.connect2.send('ok')
@@ -165,3 +195,23 @@ class Client_handler(threading.Thread):
                 
     
 
+    def share_task(self,task):
+        action_dir_name = task['action'].dir_name
+        action_filename = task['action'].filename
+        if action_dir_name == '.':
+            bucket = self.au.find_bucket(action_dir_name)
+        else:
+            bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
+        sharer = self.au.find_sharer(bucket,self.username)
+        for i in sharer:
+            sharer_tq = Task_Queue(i)
+            sharer_au = Authority(i)
+            #change dir_name to new user's dir_name
+            dir_name = sharer_au.find_dir(bucket)
+            tmp_act = task['action'].change_dir(dir_name)
+            action = Action(tmp_act)
+            sharer_tq.db_push(action,'share')
+            
+    
+
+        

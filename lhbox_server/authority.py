@@ -36,7 +36,12 @@ class Authority(object):
         users.append(self.username)
         self.budb.update({'bucket':bucket},{'users':users})
         
+    def find_sharer(self,bucket,username):
+        users = self.budb.find_one({'bucket':bucket})['users']
+        sharer = user.remove(username)
+        return sharer
         
         
-        
-        
+    def find_dir(self, bucket):
+        dir_name = self.audb.find_one({'bucket':bucket})['dir_name']
+        return dir_name
