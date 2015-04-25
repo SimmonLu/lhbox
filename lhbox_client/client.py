@@ -327,7 +327,8 @@ def main():
             while shareChoice < 0 or shareChoice > len(dirList):
                 rangeToUser = "Dir to Share: -> (0 to %d)" % len(dirList)
                 shareChoice = int(raw_input(rangeToUser))
-            shareinfo = 'SHR' + dirList[shareChoice]
+            nameToShare = raw_input("Whom to share? -> ")
+            shareinfo = 'SHR' + dirList[shareChoice] + nameToShare
             s2.send(shareinfo)
                 
 
