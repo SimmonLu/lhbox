@@ -4,6 +4,7 @@ import threading
 import time
 import socket
 import os
+import shutil
 from string import replace
 from login import logIN
 from s3 import S3
@@ -25,19 +26,19 @@ class MyEventHandler(pyinotify.ProcessEvent):
     def process_IN_MOVED_TO(self, event):
         mutex.acquire(1)
         #print "MOVED_TO event:", event.wd
-        eventList.append(("MVT",str(event.pathname), int(event.wd)))
+        eventList.append(("MVT",str(event.pathname)))
         mutex.release()
 
     def process_IN_MOVED_FROM(self, event):
         mutex.acquire(1)
         #print "MOVED_FROM event:", event.pathname
-        eventList.append(("MVF",str(event.pathname), int(event.wd)))
+        eventList.append(("MVF",str(event.pathname)))
         mutex.release()
 
     def process_IN_DELETE(self, event):
         mutex.acquire(1)
         #print "DELETE event:", event.pathname
-        eventList.append(("DEL",str(event.pathname), int(event.wd)))
+        eventList.append(("DEL",str(event.pathname)))
         mutex.release()
 
     def process_IN_MODIFY(self, event):
@@ -47,7 +48,7 @@ class MyEventHandler(pyinotify.ProcessEvent):
             eventList.pop(0)
         if len(eventList):
             eventList.pop(0)
-        eventList.append(("MOD",str(event.pathname), int(event.wd)))
+        eventList.append(("MOD",str(event.pathname)))
         mutex.release()
 
 def foo(notifier):
@@ -115,8 +116,8 @@ class eventReader(object):
     def parseEvent(self):
         global fileToRemove
         global eventToSend
-        mutex.acquire(1)
         mutex_s.acquire(1)
+        mutex.acquire(1)
         event = eventList[0]
         if event[0] == 'MVT' or event[0] == 'MVF':
             mutex.release()
@@ -134,7 +135,7 @@ class eventReader(object):
                     if not self.checkRename():
                         if not self.checkCreate(event[1]):
                             eventToSend.append(('DEL ' + event[1]))
-                            fileToRemove = event[2]
+                            #   fileToRemove = event[2]
                 eventList.pop(0)
             elif event[0] == 'MOD':
                 print event[0], event[1]
@@ -157,10 +158,10 @@ class eventReader(object):
                 eventToSend.append(('DEL ' + event[1]))
             else:
                 eventList.pop(0)                
-            fileToRemove = event[2]
+            #fileToRemove = event[2]
             eventList.pop(0)
-        mutex_s.release()
         mutex.release()
+        mutex_s.release()
 
 def event_reader(name, path):
     er = eventReader()
@@ -261,8 +262,40 @@ def recvRequest(name, sock):
                     os.rename(d_file, n_path)
 
         elif cmd == 'delete':
-            pass
-
+            DorF = args[1]
+            path = args[2]
+            mutex_s.acquire(1)
+            mutex.acquire(1)
+            if DorF == 'F':
+                d_file = os.path.join(root, path)
+                os.remove(d_file)
+                oriLen = len(eventList)
+                mutex.release()
+                time.sleep(0.1)
+                mutex.acquire(1)
+                aftLen = len(eventList)
+                if aftLen - oriLen == 1:
+                    print 'delete in list: 'eventList.pop(oriLen)
+                else:
+                    toRemove = 'DELETE event: ' + d_file
+                    if toRemove in eventList:
+                        eventList.remove(toRemove)
+                    else:
+                        print 'no delete after remove'
+            elif DorF == 'D':
+                d_file = os.path.join(root, path)
+                shutil.rmtree(d_file)
+                oriLen = len(eventList)
+                mutex.release()
+                time.sleep(0.1)
+                mutex.acquire(1)
+                aftLen = len(eventList)
+                toRemove = 'DELETE event: ' + d_file
+                for i in range(oriLen, aftLen):
+                    if toRemove in eventList[i]:
+                        del eventList[i]
+            mutex.release()                
+            mutex_s.release()
 
 def main():
 
@@ -313,7 +346,7 @@ def main():
 
     global eventToSend
     while True:
-        user_input = raw_input("userinput: -> ")
+        user_input = raw_input("What do you want?: -> (Try \'share\')")
         if user_input == 'print':
             print eventToSend
         if user_input == 'share':
@@ -330,7 +363,9 @@ def main():
             nameToShare = raw_input("Whom to share? -> ")
             shareinfo = 'SHR' + dirList[shareChoice] + nameToShare
             s2.send(shareinfo)
-                
+            response = s2.recv(1024)
+            print response
+            
 
 if __name__ == '__main__':
     main()
