@@ -23,8 +23,12 @@ secret_key = 'KQWFPycFbRxhkAtmdTbtJvD77nEbFp4y9efc57rA'
 
 class MyEventHandler(pyinotify.ProcessEvent):
 
+    def process_IN_MOVE_SELF(self, event):
+        print "MOVE_SELF",str(event.pathname)
+
     def process_IN_MOVED_TO(self, event):
         mutex.acquire(1)
+        print "MVT",str(event.pathname)
         #print "MOVED_TO event:", event.wd
         eventList.append(("MVT",str(event.pathname)))
         mutex.release()
@@ -32,18 +36,20 @@ class MyEventHandler(pyinotify.ProcessEvent):
     def process_IN_MOVED_FROM(self, event):
         mutex.acquire(1)
         #print "MOVED_FROM event:", event.pathname
+        print "MVF",str(event.pathname)
         eventList.append(("MVF",str(event.pathname)))
         mutex.release()
 
     def process_IN_DELETE(self, event):
         mutex.acquire(1)
         #print "DELETE event:", event.pathname
+        print "DEL",str(event.pathname)
         eventList.append(("DEL",str(event.pathname)))
         mutex.release()
 
     def process_IN_MODIFY(self, event):
         mutex.acquire(1)
-        print "MODIFY event:", event.wd
+        print "MOD",str(event.pathname)
         if len(eventList):
             eventList.pop(0)
         if len(eventList):
@@ -53,7 +59,6 @@ class MyEventHandler(pyinotify.ProcessEvent):
 
 def foo(notifier):
     global fileToRemove
-    print fileToRemove
     if fileToRemove != -1:
         #notifier._watch_manager.rm_watch(fileToRemove)
         print 'rmwatch',  fileToRemove
@@ -62,7 +67,7 @@ def foo(notifier):
 
 def watch_manager(name, directory):
     #wm = pyinotify.WatchManager()
-    mask = pyinotify.IN_DELETE | pyinotify.IN_MODIFY | pyinotify.IN_MOVED_TO | pyinotify.IN_MOVED_FROM
+    mask = pyinotify.IN_DELETE | pyinotify.IN_MODIFY | pyinotify.IN_MOVED_TO | pyinotify.IN_MOVED_FROM | pyinotify.IN_MOVE_SELF
     wm.add_watch(directory, mask, rec=True, auto_add = True)
     # event handler
     eh = MyEventHandler()
@@ -94,14 +99,16 @@ class eventReader(object):
         if nextEvent[0] != 'MVT':
             return False
         
-        Currs = currEvent.split('/')
-        Nexts = nextEvent.split('/')
+        Currs = currEvent[1].split('/')
+        Nexts = nextEvent[1].split('/')
         lastCurr = Currs[-1] 
         lastNext = Nexts[-1]
-        remain = nextEvent.replace(currEvent, "")
+        remain = nextEvent[1].replace(currEvent[1], "")
         if remain[:9] == '_conflict':
+            eventList.pop(0)
             return True
         elif lastCurr == '.' +  lastNext:
+            eventList.pop(0)
             return True
         else:
             return False
@@ -125,26 +132,26 @@ class eventReader(object):
             mutex.acquire(1)
             event = eventList[0]
             if event[0] == 'MVT':
-                print 'CRT', event[1]
+                print '---CRT', event[1]
                 if not self.checkHide(event[1]):
                     eventToSend.append(('CRT ' + event[1]))
                 eventList.pop(0)
             elif event[0] == 'MVF':
-                print 'DEL', event[1]
-                if not self.checkHide(event[1]):
-                    if not self.checkRename():
+                print '---DEL', event[1]
+                if not self.checkRename():
+                    if not self.checkHide(event[1]):
                         if not self.checkCreate(event[1]):
                             eventToSend.append(('DEL ' + event[1]))
                             #   fileToRemove = event[2]
                 eventList.pop(0)
             elif event[0] == 'MOD':
-                print event[0], event[1]
+                print '---'+event[0], event[1]
                 if not self.checkHide(event[1]):
                     eventToSend.append(('MOD ' + event[1]))
                 eventList.pop(0)
                 eventList.pop(0)
         elif event[0] == 'MOD':
-            print event[0], event[1]
+            print '---'+event[0], event[1]
             eventList.pop(0)
             mutex.release()
             time.sleep(0.1)
@@ -153,7 +160,7 @@ class eventReader(object):
                 eventToSend.append(('MOD ' + event[1]))
             eventList.pop(0)
         elif event[0] == 'DEL':
-            print event[0], event[1]
+            print '---'+event[0], event[1]
             if not self.checkHide(event[1]):
                 eventToSend.append(('DEL ' + event[1]))
             else:
@@ -174,6 +181,7 @@ def parsePath(path):
     cmd = request[0]
     abPath = request[1]
     fileType = ''
+    print 'abPath = ' + abPath
     if os.path.isfile(abPath):
         fileType = 'F'
     else:
@@ -275,7 +283,7 @@ def recvRequest(name, sock):
                 mutex.acquire(1)
                 aftLen = len(eventList)
                 if aftLen - oriLen == 1:
-                    print 'delete in list: 'eventList.pop(oriLen)
+                    print 'delete in list: '+ eventList.pop(oriLen)
                 else:
                     toRemove = 'DELETE event: ' + d_file
                     if toRemove in eventList:
