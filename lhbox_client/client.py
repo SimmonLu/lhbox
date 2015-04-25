@@ -314,9 +314,22 @@ def main():
     global eventToSend
     while True:
         user_input = raw_input("userinput: -> ")
-        if  user_input == 'print':
+        if user_input == 'print':
             print eventToSend
-
+        if user_input == 'share':
+            fileList = os.listdir(root)
+            dirList = filter(lambda x: os.path.isdir(x), fileList)
+            print "Which directory to share? "
+            count = 0
+            for directory in dirList:
+                print str(count) + ': ' + directory 
+            shareChoice = -1
+            while shareChoice < 0 or shareChoice > len(dirList):
+                rangeToUser = "Dir to Share: -> (0 to %d)" % len(dirList)
+                shareChoice = int(raw_input(rangeToUser))
+            shareinfo = 'SHR' + dirList[shareChoice]
+            s2.send(shareinfo)
+                
 
 if __name__ == '__main__':
     main()
