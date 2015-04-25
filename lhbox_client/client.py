@@ -318,7 +318,7 @@ def main():
             print eventToSend
         if user_input == 'share':
             fileList = os.listdir(root)
-            dirList = filter(lambda x: os.path.isdir(x), fileList)
+            dirList = filter(lambda x: os.path.isdir(os.path.join(root, x)), fileList)
             print "Which directory to share? "
             count = 0
             for directory in dirList:
