@@ -1,8 +1,8 @@
-from database import mydb
+from database import Mydb
 
-class register(object):
+class Register(object):
     def __init__(self):
-        self.regdb = mydb('localhost',27017)
+        self.regdb = Mydb('localhost',27017)
         self.regdb.use('devilbox')
         self.regdb.setCollection('register')
     

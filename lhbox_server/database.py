@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import pymongo
 
-class mydb(object):
+class Mydb(object):
     
     def __init__(self, host, port):
         #conn 类型<class 'pymongo.connection.Connection'>
@@ -106,6 +106,9 @@ class mydb(object):
             exit(0)
         #update无返回值
         self.coll.update_one(data,{'$set':setdata})
+        
+    def count(self):
+        return self.coll.count()
 
 if __name__ == '__main__':
     connect = mydb('localhost', 27017)
