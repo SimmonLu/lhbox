@@ -11,7 +11,7 @@ class Task_Queue(object):
         self.task_queue = [] #[{'action':action,'source':'self'}]
 
     #check if the task queue in db is empty
-    def db_is_empty():
+    def db_is_empty(self):
         if self.tqdb.count() == 0:
             return True
         else:
@@ -85,12 +85,12 @@ class Action(object):
         raw_action = raw_action.split()
         self.type = raw_action[0]
         self.object = raw_action[1] 
-        if len(string.find(raw_action[2],'/')) == 0:
+        if len(raw_action[2].split('/')) == 1:
             self.dir_name = '.'
             self.filename = raw_action[2]
         else:   
-            self.dir_name = raw_action[2][:string.rfind(raw_action[1],'/')]
-            self.filename = raw_action[2][string.rfind(raw_action[1],'/')+1:]
+            self.dir_name = raw_action[2][:string.rfind(raw_action[2],'/')]
+            self.filename = raw_action[2][string.rfind(raw_action[2],'/')+1:]
     
     def is_same(self,action):
         if self.type == action.type and self.dir_name == action.dir_name and self.filename == action.filename:
@@ -99,9 +99,11 @@ class Action(object):
             return False
             
     def change_dir(self,dir_name):
-        return self.type+' 'self.object+' '+dir_name+' '+self.filename
+        return self.type+' '+self.object+' '+dir_name+' '+self.filename
         
 
+def test():
+    mytq = Task_Queue('jingxiong')
     
         
 

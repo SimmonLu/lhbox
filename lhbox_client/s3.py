@@ -23,7 +23,9 @@ class S3(object):
         elif self.connected == 1:
             b = self.conn.get_bucket(bucket)
             k = Key(b)
-            k.key = local_file
+            args = local_file.split('/')
+            filename = args[-1]
+            k.key = filename
             k.set_contents_from_filename(local_file)
         
     def ls(self):

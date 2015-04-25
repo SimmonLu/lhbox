@@ -12,7 +12,7 @@ class Register(object):
             print('Sign up fail: User already exists.')
             return False
         else:
-            self.regdb.insert({'username':username, 'password':password})
+            self.regdb.insert({'username':username, 'password': password})
             print(username + ' sign up successfully.')
             return True
     
@@ -38,3 +38,13 @@ class Register(object):
             self.regdb.remove({'username':username})
             print('Delete user:' + username + ' successfully.')
         
+    def print_database(self):
+        self.regdb.print_database()
+
+def test():
+    myreg = Register()
+    myreg.delete_user('jingxiong')
+    myreg.print_database()
+    
+if __name__ == '__main__':
+    test()

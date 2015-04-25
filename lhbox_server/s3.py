@@ -2,6 +2,9 @@ from boto.s3.connection import S3Connection
 from boto.s3.bucketlistresultset import BucketListResultSet
 from boto.s3.key import Key
 
+access_key = 'AKIAJGCZ2F45AZJQ2UGA'
+secret_key = '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'
+
 class S3(object):
     def __init__(self, access_key, secret_key):
         self.access_key = access_key
@@ -11,10 +14,10 @@ class S3(object):
         self.conn = S3Connection(self.access_key, self.secret_key)
         self.connected = 1
     
-    def creat_bucket(self,bucket_name):
+    def create_bucket(self,bucket_name):
         if self.connected == 0:
             print('Not connected!')
-        elif self.onnected == 1:
+        elif self.connected == 1:
             bucket = self.conn.create_bucket(bucket_name)
         
     def upload(self, bucket, local_file):
@@ -107,6 +110,10 @@ def showMenu():
  
 Enter choice:'''
 
+def test():
+    s3 = S3(access_key, secret_key)
+    s3.connect()
+    s3.create_bucket('huangjingxiong')
 
 if __name__ == '__main__':
-    showMenu()
+    test()

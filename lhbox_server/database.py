@@ -69,6 +69,7 @@ class Mydb(object):
                 return False
             else:
                 result = self.coll.find_one(query)
+                print result
                 if result != None:
                     return True
                 else:
@@ -106,9 +107,14 @@ class Mydb(object):
             exit(0)
         #update无返回值
         self.coll.update_one(data,{'$set':setdata})
-        
+
     def count(self):
         return self.coll.count()
+        
+    def print_database(self):
+        result = self.coll.find()
+        for i in result:
+            print i
 
 if __name__ == '__main__':
     connect = mydb('localhost', 27017)

@@ -37,11 +37,29 @@ class Authority(object):
         self.budb.update({'bucket':bucket},{'users':users})
         
     def find_sharer(self,bucket,username):
+        print('username: '+username)
         users = self.budb.find_one({'bucket':bucket})['users']
-        sharer = user.remove(username)
+        print('users:')
+        print users
+        users.remove(username)
+        sharer = users
+        print('sharer:')
+        print sharer
         return sharer
         
         
     def find_dir(self, bucket):
         dir_name = self.audb.find_one({'bucket':bucket})['dir_name']
         return dir_name
+        
+    def print_database(self):
+        self.audb.print_database()
+        self.budb.print_database()
+
+def test():
+    myau = Authority('jingxiong')
+    myau.print_database()
+
+
+if __name__ == '__main__':
+    test()

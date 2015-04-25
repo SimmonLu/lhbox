@@ -2,8 +2,12 @@ import pyinotify
 import Queue
 import threading
 import time
+import socket
+import os
+from string import replace
 from login import logIN
-from S3 import S3
+from s3 import S3
+
 
 eventToSend = []
 eventList = []
@@ -13,8 +17,8 @@ wm = pyinotify.WatchManager()
 fileToRemove = -1
 username = ''
 root = ''
-access_key = AKIAJGCZ2F45AZJQ2UGA
-secret_key = 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
+access_key = 'AKIAJGCZ2F45AZJQ2UGA'
+secret_key = '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'
 
 class MyEventHandler(pyinotify.ProcessEvent):
 
@@ -93,7 +97,7 @@ class eventReader(object):
         Nexts = nextEvent.split('/')
         lastCurr = Currs[-1] 
         lastNext = Nexts[-1]
-        remain = nextEvent.strip(currEvent)
+        remain = nextEvent.replace(currEvent, "")
         if remain[:9] == '_conflict':
             return True
         elif lastCurr == '.' +  lastNext:
@@ -101,7 +105,7 @@ class eventReader(object):
         else:
             return False
 
-    def checkCreate(self):
+    def checkCreate(self, path):
         sections = path.split('/')
         if sections[-1] == 'Untitled Folder':
             return True
@@ -173,8 +177,8 @@ def parsePath(path):
         fileType = 'F'
     else:
         fileType = 'D'
-    toStrip = root + '/'
-    filepath = path.strip(toStrip)
+    toStrip = cmd + ' ' + root + '/'
+    filepath = path.replace(toStrip, "")
     return cmd, fileType, filepath
 
 
@@ -186,8 +190,9 @@ def sendRequest(name, sock):
             event = eventToSend.pop(0)
             cmd, fileType, filepath = parsePath(event)
             toSend = cmd + ' ' + fileType + ' ' + filepath
+            print 'send out: ' + toSend
             sock.send(toSend)
-            res = sock.recv()
+            res = sock.recv(1024)
             if res == 'OK':
                 continue
             elif res == 'conflict':
@@ -202,7 +207,8 @@ def recvRequest(name, sock):
     s3Connecter = S3(access_key,secret_key)
     s3Connecter.connect()
     while True:
-        request = sock.recv()
+        request = sock.recv(1024)
+        print request
         args = request.split()
         cmd = args[0]
         if cmd == 'upload':
@@ -230,7 +236,7 @@ def recvRequest(name, sock):
                 d_file = os.path.join(root, path, filename)
                 s3Connecter.download(bucket, filename, d_file)
                 sock.send('Download finished')
-                res = sock.recv()
+                res = sock.recv(1024)
                 if res == 'apply':
                     n_file = os.path.join(root, path, args[4])
                     os.rename(d_file, n_file)
@@ -244,7 +250,7 @@ def recvRequest(name, sock):
                     d_f = os.path.join(d_file, new_f)
                     s3Connecter.download(bucket, f, d_f)
                 sock.send('Download finished')
-                res = sock.recv()
+                res = sock.recv(1024)
                 if res == 'apply':
                     for f in fileList:
                         new_f = '.' + f
@@ -281,10 +287,11 @@ def main():
         username = raw_input("Username: -> ")
         password = raw_input("Password: -> ")
         userPath = logIN(username, password, s1, lors)
-        if userPath == 'fail':
+        res = userPath.checkIN()
+        if res == 'fail':
             print 'Login failed, try again'
         else:
-            root = userPath
+            root = res
             valid = 1
             
     #send request
@@ -292,11 +299,11 @@ def main():
     t1.setDaemon(True)
     t1.start()
     #watch manager
-    watchManager = threading.Thread(target = watch_manager, args = ("wm", path))
+    watchManager = threading.Thread(target = watch_manager, args = ("wm", root))
     watchManager.setDaemon(True)
     watchManager.start()
     #event reader
-    ER = threading.Thread(target = event_reader, args = ("er", path))
+    ER = threading.Thread(target = event_reader, args = ("er", root))
     ER.setDaemon(True)
     ER.start()
     #recv request

@@ -20,8 +20,9 @@ class test(object):
         
 
 def main():
-    t1 = test()
-    t1.print_data()
+    list = []
+    for i in list:
+        print 'a'
 
 if __name__ == '__main__':
     main()
