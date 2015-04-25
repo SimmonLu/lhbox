@@ -77,18 +77,30 @@ class Client_handler(threading.Thread):
     def create_dir(self,dir_name):
         print('enter create dir')
         if dir_name == '.':
-            self.s3.create_bucket(self.username)
-            self.au.add_bucket('.',self.username)
-            return self.username
+            bucket = '590cloudcomputing-juehanbode-'+self.username 
+            self.s3.create_bucket(bucket)
+            self.au.add_bucket('.',bucket)
+            return bucket
         elif dir_name != '':
             dir = dir_name.replace('/','-')
-            self.s3.create_bucket(self.username+'-'+dir)
-            self.au.add_bucket(dir_name,self.username+'-'+dir_name)
-            return self.username+'-'+dir_name
+            bucket = '590cloudcomputing-juehanbode-'+self.username+'-'+dir
+            self.s3.create_bucket(bucket)
+            self.au.add_bucket(dir_name,bucket)
+            return bucket
         else:
             print('dir_name is empty.')
             return None
 
+    def delete_dir(self,dir_name):
+        print('enter delete dir')
+        bucket = self.au.find_bucket(dir_name)
+        #remove authority first
+        self.au.remove_bucket(dir_name)
+        #delete bucket second
+
+        
+        
+        
 
 
     def handle_task(self):
@@ -121,7 +133,7 @@ class Client_handler(threading.Thread):
             if action_type == 'CRT' and action_object == 'D':
                 #create new directory, create a new bucket
                 if action_dir_name == '.':
-                    bucket = self.create_dir(action_filename)
+                    bucket = self.create_dir(action_filename)# Notice: here is filename nor dir_name!!!!!!
                     self.connect1.send('upload D '+action_filename+' '+bucket)
                 else:
                     bucket = self.create_dir(action_dir_name+'/'+action_filename)
@@ -132,11 +144,27 @@ class Client_handler(threading.Thread):
                     bucket = self.au.find_bucket(action_dir_name)
                     self.connect1.send('upload F '+action_filename+' '+bucket)
                 else:
-                    bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
+                    bucket = self.au.find_bucket(action_dir_name)
                     self.connect1.send('upload F '+action_dir_name+'/'+action_filename+' '+bucket)
        
             elif action_type == 'DEL':
-                pass
+                if action_object == 'D':
+                    if action_dir_name == '.':
+                        self.delete_dir(action_filename)
+                        deleted_bucket = self.au.find_bucket(action_filename)
+                        #delete bucket on s3
+                        self.s3.delete_bucket(deleted_bucket)
+                        
+                    else:
+                        self.delete_dir(action_dir_name+'/'+action_filename)
+                        deleted_bucket = self.au.find_bucket(action_filename)
+                        #delete bucket on s3
+                        self.s3.delete_bucket(deleted_bucket)
+                elif action_object == 'F':
+                    upper_bucket = self.au.find_bucket(action_dir_name)
+                    #delete file on s3
+                    self.s3.delfile(upper_bucket,action_filename)
+                    
 
             response = self.connect1.recv(1024)
             if response == 'ACK':
@@ -150,22 +178,30 @@ class Client_handler(threading.Thread):
             if action_type == 'CRT' and action_object == 'D':
                 #create new directory, create a new bucket
                 if action_dir_name == '.':
-                    bucket = self.create_dir(action_filename)
-                    self.connect1.send('download D '+action_filename+' '+bucket)
+                    bucket = self.au.find_dir(action_filename)# Notice: here is filename nor dir_name!!!!!!
                 else:
-                    bucket =self.create_dir(action_dir_name+'/'+action_filename)
-                    self.connect1.send('download D '+action_dir_name+'/'+action_filename+' '+bucket)
+                    bucket =self.find_dir(action_dir_name+'/'+action_filename)
+                    
+                self.connect1.send('download D '+action_dir_name+' '+bucket+' '+action_filename)
 
             elif (action_type == 'CRT' or action_type == 'MOD') and action_object == 'F':
-                if action_dir_name == '.':
                     bucket = self.au.find_bucket(action_dir_name)
-                    self.connect1.send('download F '+action_filename+' '+bucket+' '+action_filename)
-                else:
-                    bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
-                    self.connect1.send('download F '+action_dir_name+'/'+action_filename+' '+bucket)
+                    self.connect1.send('download F '+action_dir_name+' '+bucket+' '+action_filename)
        
             elif action_type == 'DEL':
-                pass
+                if action_dir_name == '.':
+                    self.connect1.send('delete '+action_object+' '+action_filename)
+                    if action_object == 'D':
+                        new_bucket = self.au.find_bucket(action_filename)
+                        self.delete_dir(action_filename)
+                        self.au.remove_dir(new_bucket)
+                else:
+                    self.connect1.send('delete '+action_object+' '+action_dir_name+'/'+action_filename)
+                    if action_object == 'D':
+                        new_bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
+                        self.delete_dir(action_dir_name+'/'+action_filename)                    
+                        self.au.remove_dir(new_bucket)
+                return
 
             response = self.connect1.recv(1024)
             if response == 'Download finished':
@@ -176,16 +212,16 @@ class Client_handler(threading.Thread):
                 self.task_queue.pop()
                 self.lock.release()
             
-            
-            
-            
-        
-            
                 
     #receive action from user, push into task queue
     def action_from_user(self):
         while True:
             action = self.connect2.recv(1024)
+            #deal with share directory with other user
+            if action.split()[0] == 'SHR':
+                self.share_directory(action)
+                continue
+
             tmp_act = Action(action)
             print('Receive a request.')
             self.lock.acquire()
@@ -208,26 +244,96 @@ class Client_handler(threading.Thread):
                 self.task_queue.db_pop_to_queue()
                 self.lock.release()
 
-                
+    def share_directory(self, action):
+        action = action.split()
+        dir_name = action[1]
+        username = action[2]
+        bucket = self.au.find_bucket(dir_name)
+        myreg = Register()
+        if myreg.user_exist(username) == False:
+            print('User not exist.')
+            self.connect2.send('User not exist.')
+            return
+        else:
+            sharer_au = Authority(username)
+            sharer_au.share_bucket(bucket)
+            sharer_tq = Task_Queue(username)
+            new_dir_name = sharer_au.find_dir(bucket)
+            str_action = 'CRT D '+new_dir_name    
+            action = Action(str_action)
+            sharer_tq.db_push(action,'share')
+            print('Share successfully')
+            self.connect2.send('Share successfully.')
+
+        
+        
     
 
     def share_task(self,task):
         action_dir_name = task['action'].dir_name
         action_filename = task['action'].filename
-        if action_dir_name == '.':
-            bucket = self.au.find_bucket(action_dir_name)
-        else:
-            bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
+        #find the upper level directory
+        bucket = self.au.find_bucket(action_dir_name)
         sharer = self.au.find_sharer(bucket,self.username)
-        for i in sharer:
-            sharer_tq = Task_Queue(i)
-            sharer_au = Authority(i)
-            #change dir_name to new user's dir_name
-            dir_name = sharer_au.find_dir(bucket)
-            tmp_act = task['action'].change_dir(dir_name)
-            action = Action(tmp_act)
-            sharer_tq.db_push(action,'share')
+        #if action is create a directory,authorize the new 
+        #directory to owner of upper level directory
+        new_bucket = ''
         
-    
+        if task['action'].type != 'DEL':
+            if task['action'].object == 'D':                
+                if action_dir_name == '.':
+                    new_bucket = self.au.find_bucket(action_filename)
+                else:
+                    new_bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
+                    #add authority
+                    for i in sharer:
+                        sharer_au = Authority(i)
+                        sharer_au.share_bucket(new_bucket)
+                        sharer_tq = Task_Queue(i)
+                        #change dir_name to new user's dir_name
+                        new_dir_name = sharer_au.find_dir(new_bucket)
+                        str_action = 'CRT D '+new_dir_name
+                        action = Action(str_action)
+                        sharer_tq.db_push(action,'share')
+                
+                
+            elif task['action'].object == 'F':
+                for i in sharer:
+                    sharer_tq = Task_Queue(i)
+                    sharer_au = Authority(i)
+                    #change dir_name to new user's dir_name
+                    new_dir_name = sharer_au.find_dir(bucket)
+                    str_action = task['action'].change_dir(new_dir_name)
+                    action = Action(str_action)
+                    sharer_tq.db_push(action,'share')
+        
+        elif task['action'].type == 'DEL':
+            if task['action'].object == 'D':                
+                if action_dir_name == '.':
+                    new_bucket = self.au.find_bucket(action_filename)
+                else:
+                    new_bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
+  
+                    for i in sharer:
+                        sharer_tq = Task_Queue(i)
+                        #change dir_name to new user's dir_name
+                        new_dir_name = sharer_au.find_dir(new_bucket)
+                        str_action = 'DEL D '+new_dir_name
+                        action = Action(str_action)
+                        sharer_tq.db_push(action,'share')
+                self.au.remove_dir(new_bucket)
+                
+                
+            elif task['action'].object == 'F':
+                for i in sharer:
+                    sharer_tq = Task_Queue(i)
+                    sharer_au = Authority(i)
+                    #change dir_name to new user's dir_name
+                    new_dir_name = sharer_au.find_dir(bucket)
+                    str_action = task['action'].change_dir(new_dir_name)
+                    action = Action(str_action)
+                    sharer_tq.db_push(action,'share')
+            
+            
 
         

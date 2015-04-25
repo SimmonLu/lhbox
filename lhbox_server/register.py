@@ -28,7 +28,12 @@ class Register(object):
             else:
                 print(username + ' login successfully')
                 return True
-            
+                
+    def user_exist(self,username):
+        if self.regdb.exist({'username':username}) == False:
+            return False
+        else:
+            return True
         
     def delete_user(self, username):
         if self.regdb.exist({'username':username}) == False:
