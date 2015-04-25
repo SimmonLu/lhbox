@@ -32,8 +32,13 @@ class Authority(object):
     
 
     def find_bucket(self,dir_name):
-        bucket = self.audb.find_one({'dir_name':dir_name})['bucket']
-        return bucket
+        bucket = self.audb.find_one({'dir_name':dir_name})
+        if bucket == None:
+            print('Can not find bucket.')
+            return None
+        else:
+            bucket = bucket['bucket']
+            return bucket
         
 
     def share_bucket(self,bucket):

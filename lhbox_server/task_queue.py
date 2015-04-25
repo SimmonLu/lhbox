@@ -98,8 +98,22 @@ class Action(object):
         else:
             return False
             
+    def dir_for_dir(self):
+        if self.dir_name == '.':
+            return self.filename
+        else:
+            return self.dir_name+'/'+self.filename
+
+    def dir_for_file(self):
+        return self.dir_name
+            
     def change_dir(self,dir_name):
         return self.type+' '+self.object+' '+dir_name+' '+self.filename
+        
+    def change_object(self,object):
+        self.object = object
+        dir = self.dir_for_dir()
+        self.raw_action = self.type+' '+self.object+' '+dir
         
 
 def test():

@@ -120,6 +120,7 @@ class Client_handler(threading.Thread):
 
     def do_task(self,task):
         print('start ' + task['action'].str_action)
+        curr_action = task['action']
         action_type = task['action'].type
         print action_type
         action_object = task['action'].object
@@ -148,7 +149,16 @@ class Client_handler(threading.Thread):
                     self.connect1.send('upload F '+action_dir_name+'/'+action_filename+' '+bucket)
        
             elif action_type == 'DEL':
-                if action_object == 'D':
+                real_object = ''
+                test_dir = curr_action.dir_for_dir()
+                if self.au.find_bucket(test_dir) == None:
+                    real_object = 'F'
+                else:
+                    real_object = 'D'
+                curr_action.change_object(real_object)
+                task['action'] = curr_action
+
+                if real_object == 'D':
                     if action_dir_name == '.':
                         self.delete_dir(action_filename)
                         deleted_bucket = self.au.find_bucket(action_filename)
@@ -160,11 +170,11 @@ class Client_handler(threading.Thread):
                         deleted_bucket = self.au.find_bucket(action_filename)
                         #delete bucket on s3
                         self.s3.delete_bucket(deleted_bucket)
-                elif action_object == 'F':
+                elif real_object == 'F':
                     upper_bucket = self.au.find_bucket(action_dir_name)
                     #delete file on s3
                     self.s3.delfile(upper_bucket,action_filename)
-                    
+                return
 
             response = self.connect1.recv(1024)
             if response == 'ACK':
