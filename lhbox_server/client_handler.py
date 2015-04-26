@@ -159,6 +159,7 @@ class Client_handler(threading.Thread):
                     real_object = 'F'
                 else:
                     real_object = 'D'
+                print('real_object: '+real_object)
                 curr_action.change_object(real_object)
                 task['action'] = curr_action
 
@@ -171,13 +172,18 @@ class Client_handler(threading.Thread):
                         
                     else:
                         self.delete_dir(action_dir_name+'/'+action_filename)
-                        deleted_bucket = self.au.find_bucket(action_filename)
+                        deleted_bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
                         #delete bucket on s3
                         self.s3.delete_bucket(deleted_bucket)
                 elif real_object == 'F':
                     upper_bucket = self.au.find_bucket(action_dir_name)
                     #delete file on s3
                     self.s3.delfile(upper_bucket,action_filename)
+
+                self.lock.acquire()
+                self.task_queue.pop()
+                self.lock.release()
+                self.share_task(task)
                 return
 
             response = self.connect1.recv(1024)
@@ -194,7 +200,7 @@ class Client_handler(threading.Thread):
                 if action_dir_name == '.':
                     bucket = self.au.find_bucket(action_filename)# Notice: here is filename nor dir_name!!!!!!
                 else:
-                    bucket =self.find_bucket(action_dir_name+'/'+action_filename)
+                    bucket =self.au.find_bucket(action_dir_name+'/'+action_filename)
                     
                 self.connect1.send('download D '+action_dir_name+' '+bucket+' '+action_filename)
                 print('send: '+'download D '+action_dir_name+' '+bucket+' '+action_filename)
@@ -205,6 +211,8 @@ class Client_handler(threading.Thread):
                 print('send: '+ 'download F '+action_dir_name+' '+bucket+' '+action_filename)
        
             elif action_type == 'DEL':
+
+
                 if action_dir_name == '.':
                     self.connect1.send('delete '+action_object+' '+action_filename)
                     print('send: '+'delete '+action_object+' '+action_filename)
@@ -219,6 +227,9 @@ class Client_handler(threading.Thread):
                         new_bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
                         self.delete_dir(action_dir_name+'/'+action_filename)                    
                         self.au.remove_dir(new_bucket)
+                self.lock.acquire()
+                self.task_queue.pop()
+                self.lock.release()
                 return
 
             response = self.connect1.recv(1024)
@@ -303,16 +314,16 @@ class Client_handler(threading.Thread):
                     new_bucket = self.au.find_bucket(action_filename)
                 else:
                     new_bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
-                    #add authority
-                    for i in sharer:
-                        sharer_au = Authority(i)
-                        sharer_au.share_bucket(new_bucket)
-                        sharer_tq = Task_Queue(i)
-                        #change dir_name to new user's dir_name
-                        new_dir_name = sharer_au.find_dir(new_bucket)
-                        str_action = 'CRT D '+new_dir_name
-                        action = Action(str_action)
-                        sharer_tq.db_push(action,'share')
+                #add authority
+                for i in sharer:
+                    sharer_au = Authority(i)
+                    sharer_au.share_bucket(new_bucket)
+                    sharer_tq = Task_Queue(i)
+                    #change dir_name to new user's dir_name
+                    new_dir_name = sharer_au.find_dir(new_bucket)
+                    str_action = 'CRT D '+new_dir_name
+                    action = Action(str_action)
+                    sharer_tq.db_push(action,'share')
                 
                 
             elif task['action'].object == 'F':
@@ -332,13 +343,14 @@ class Client_handler(threading.Thread):
                 else:
                     new_bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
   
-                    for i in sharer:
-                        sharer_tq = Task_Queue(i)
-                        #change dir_name to new user's dir_name
-                        new_dir_name = sharer_au.find_dir(new_bucket)
-                        str_action = 'DEL D '+new_dir_name
-                        action = Action(str_action)
-                        sharer_tq.db_push(action,'share')
+                new_sharer = self.au.find_sharer(new_bucket,self.username)
+                for i in new_sharer:
+                    sharer_tq = Task_Queue(i)
+                    #change dir_name to new user's dir_name
+                    new_dir_name = sharer_au.find_dir(new_bucket)
+                    str_action = 'DEL D '+new_dir_name
+                    action = Action(str_action)
+                    sharer_tq.db_push(action,'share')
                 self.au.remove_dir(new_bucket)
                 
                 

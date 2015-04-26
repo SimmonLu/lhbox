@@ -128,7 +128,7 @@ class eventReader(object):
         event = eventList[0]
         if event[0] == 'MVT' or event[0] == 'MVF':
             mutex.release()
-            time.sleep(0.1)
+            #time.sleep(0.1)
             mutex.acquire(1)
             event = eventList[0]
             if event[0] == 'MVT':
@@ -154,11 +154,12 @@ class eventReader(object):
             print '---'+event[0], event[1]
             eventList.pop(0)
             mutex.release()
-            time.sleep(0.1)
+            #time.sleep(0.1)
             mutex.acquire(1)
             if not self.checkHide(event[1]):
                 eventToSend.append(('MOD ' + event[1]))
-            eventList.pop(0)
+            if len(eventList) > 0:
+                eventList.pop(0)
         elif event[0] == 'DEL':
             print '---'+event[0], event[1]
             if not self.checkHide(event[1]):
@@ -267,7 +268,7 @@ def recvRequest(name, sock):
                         n_f = os.path.join(d_file, f.name)
                         os.rename(d_f, n_f)
                     n_file = os.path.join(root, path, args[4])
-                    os.rename(d_file, n_path)
+                    os.rename(d_file, n_file)
 
         elif cmd == 'delete':
             DorF = args[1]
@@ -278,17 +279,19 @@ def recvRequest(name, sock):
                 d_file = os.path.join(root, path)
                 if os.path.exists(d_file) == False:
                     print 'File to delete does not exist '
+                    mutex.release()                
+                    mutex_s.release()
                     continue
                 os.remove(d_file)
                 oriLen = len(eventList)
                 mutex.release()
-                time.sleep(0.1)
+                #time.sleep(0.1)
                 mutex.acquire(1)
                 aftLen = len(eventList)
                 if aftLen - oriLen == 1:
                     print 'delete in list: '+ eventList.pop(oriLen)[0] + ' ' + eventList.pop(oriLen)[1]
                 else:
-                    toRemove = 'DELETE event: ' + d_file
+                    toRemove = ('DEL', d_file)
                     if toRemove in eventList:
                         eventList.remove(toRemove)
                     else:
@@ -297,16 +300,18 @@ def recvRequest(name, sock):
                 d_file = os.path.join(root, path)
                 if os.path.exists(d_file) == False:
                     print 'File to delete does not exist '
+                    mutex.release()                
+                    mutex_s.release()
                     continue
                 shutil.rmtree(d_file)
                 oriLen = len(eventList)
                 mutex.release()
-                time.sleep(0.1)
+                #time.sleep(0.1)
                 mutex.acquire(1)
                 aftLen = len(eventList)
-                toRemove = 'DELETE event: ' + d_file
+                toRemove = ('DEL', d_file)
                 for i in range(oriLen, aftLen):
-                    if toRemove in eventList[i]:
+                    if toRemove == eventList[i]:
                         del eventList[i]
             mutex.release()                
             mutex_s.release()

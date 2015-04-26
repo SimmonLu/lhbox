@@ -48,6 +48,7 @@ class Authority(object):
         users = self.budb.find_one({'bucket':bucket})['users']
         users.append(self.username)
         self.budb.update({'bucket':bucket},{'users':users})
+
         
     def find_sharer(self,bucket,username):
         print('username: '+username)
