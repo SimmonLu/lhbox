@@ -20,9 +20,13 @@ class test(object):
         
 
 def main():
-    list = []
-    for i in list:
-        print 'a'
+    list = [1,2]
+    try: list.remove(3)
+    except ValueError:
+        print('it is ok')
+    print(list)
+    
+        
 
 if __name__ == '__main__':
     main()

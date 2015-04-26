@@ -119,16 +119,16 @@ class Client_handler(threading.Thread):
             
 
     def do_task(self,task):
-        print('start ' + task['action'].str_action)
+        print(self.username+' start ' + task['action'].str_action)
         curr_action = task['action']
         action_type = task['action'].type
-        print action_type
+        print self.username, action_type
         action_object = task['action'].object
-        print action_object
+        print self.username, action_object
         action_dir_name = task['action'].dir_name
-        print action_dir_name
+        print self.username,action_dir_name
         action_filename = task['action'].filename
-        print action_filename
+        print self.username, action_filename
 
         if task['source'] == 'self':
             if action_type == 'CRT' and action_object == 'D':
@@ -169,16 +169,19 @@ class Client_handler(threading.Thread):
                         deleted_bucket = self.au.find_bucket(action_filename)
                         #delete bucket on s3
                         self.s3.delete_bucket(deleted_bucket)
+                        print('delete bucket '+deleted_bucket)
                         
                     else:
                         self.delete_dir(action_dir_name+'/'+action_filename)
                         deleted_bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
                         #delete bucket on s3
                         self.s3.delete_bucket(deleted_bucket)
+                        print('delete bucket '+deleted_bucket)
                 elif real_object == 'F':
                     upper_bucket = self.au.find_bucket(action_dir_name)
                     #delete file on s3
                     self.s3.delfile(upper_bucket,action_filename)
+                    print('delete file '+ upper_bucket+'/'+action_filename )
 
                 self.lock.acquire()
                 self.task_queue.pop()
@@ -188,7 +191,7 @@ class Client_handler(threading.Thread):
 
             response = self.connect1.recv(1024)
             if response == 'ACK':
-                print('receive ack')
+                print(self.username+' receive ack')
                 self.lock.acquire()
                 self.task_queue.pop()
                 self.lock.release()
@@ -203,26 +206,26 @@ class Client_handler(threading.Thread):
                     bucket =self.au.find_bucket(action_dir_name+'/'+action_filename)
                     
                 self.connect1.send('download D '+action_dir_name+' '+bucket+' '+action_filename)
-                print('send: '+'download D '+action_dir_name+' '+bucket+' '+action_filename)
+                print(self.username+' send: '+'download D '+action_dir_name+' '+bucket+' '+action_filename)
 
             elif (action_type == 'CRT' or action_type == 'MOD') and action_object == 'F':
                 bucket = self.au.find_bucket(action_dir_name)
                 self.connect1.send('download F '+action_dir_name+' '+bucket+' '+action_filename)
-                print('send: '+ 'download F '+action_dir_name+' '+bucket+' '+action_filename)
+                print(self.username+' send: '+ 'download F '+action_dir_name+' '+bucket+' '+action_filename)
        
             elif action_type == 'DEL':
 
 
                 if action_dir_name == '.':
                     self.connect1.send('delete '+action_object+' '+action_filename)
-                    print('send: '+'delete '+action_object+' '+action_filename)
+                    print(self.username+' send: '+'delete '+action_object+' '+action_filename)
                     if action_object == 'D':
                         new_bucket = self.au.find_bucket(action_filename)
                         self.delete_dir(action_filename)
                         self.au.remove_dir(new_bucket)
                 else:
                     self.connect1.send('delete '+action_object+' '+action_dir_name+'/'+action_filename)
-                    print('send: '+'delete '+action_object+' '+action_dir_name+'/'+action_filename)
+                    print(self.username+'send: '+'delete '+action_object+' '+action_dir_name+'/'+action_filename)
                     if action_object == 'D':
                         new_bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
                         self.delete_dir(action_dir_name+'/'+action_filename)                    
@@ -247,7 +250,7 @@ class Client_handler(threading.Thread):
         while True:
             action = self.connect2.recv(1024)
             #deal with share directory with other user
-            print('receive: '+action)
+            print('receive from '+self.username+': '+action)
             if action.split()[0] == 'SHR':
                 self.share_directory(action)
                 continue
@@ -317,7 +320,7 @@ class Client_handler(threading.Thread):
                 #add authority
                 for i in sharer:
                     sharer_au = Authority(i)
-                    sharer_au.share_bucket(new_bucket)
+                    sharer_au.inherit_bucket(bucket,new_bucket)
                     sharer_tq = Task_Queue(i)
                     #change dir_name to new user's dir_name
                     new_dir_name = sharer_au.find_dir(new_bucket)

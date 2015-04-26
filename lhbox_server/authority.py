@@ -49,13 +49,26 @@ class Authority(object):
         users.append(self.username)
         self.budb.update({'bucket':bucket},{'users':users})
 
+    def inherit_bucket(self,old_bucket,new_bucket):
+        old_dir_name = self.audb.find_one({'bucket':old_bucket})['dir_name']
+        dir_name = new_bucket.split('-')[-1]
+        new_dir_name = old_dir_name+'/'+dir_name
+        #shared directory will be in the root directory
+        self.audb.insert({'dir_name':new_dir_name, 'bucket':new_bucket})
+        users = self.budb.find_one({'bucket':new_bucket})['users']
+        users.append(self.username)
+        self.budb.update({'bucket':new_bucket},{'users':users})
+
         
     def find_sharer(self,bucket,username):
         print('username: '+username)
         users = self.budb.find_one({'bucket':bucket})['users']
         print('users:')
         print users
-        users.remove(username)
+        try:users.remove(username)
+        except ValueError:
+            print('find sharer')
+        
         sharer = users
         print('sharer:')
         print sharer
