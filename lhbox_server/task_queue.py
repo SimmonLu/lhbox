@@ -27,6 +27,9 @@ class Task_Queue(object):
             tmp_act = Action(i['action'])
             source = i['source']
             self.task_queue.append({'action':tmp_act,'source':source}) 
+            self.tqdb.remove(i)
+
+    
             
     
     #push a action into task queue    
@@ -77,6 +80,8 @@ class Task_Queue(object):
         for i in self.task_queue:
             print(i['action'].type,i['action'].object,i['action'].dir_name,i['action'].filename, i['source'])
 
+    def print_database(self):
+        self.tqdb.print_database()
 
 class Action(object):
     def __init__(self,raw_action):
@@ -114,11 +119,15 @@ class Action(object):
         self.object = object
         dir = self.dir_for_dir()
         self.raw_action = self.type+' '+self.object+' '+dir
-        
+    
+
 
 def test():
     mytq = Task_Queue('jingxiong')
-    
+    mytq2 =Task_Queue('xinlu')
+    mytq.print_database()
+    mytq2.print_database()
         
 
-        
+if __name__ == '__main__':
+    test()

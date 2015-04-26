@@ -72,6 +72,8 @@ class Authority(object):
 def test():
     myau = Authority('jingxiong')
     myau.print_database()
+    myau2 = Authority('xinlu')
+    myau2.print_database()
 
 
 if __name__ == '__main__':

@@ -136,17 +136,21 @@ class Client_handler(threading.Thread):
                 if action_dir_name == '.':
                     bucket = self.create_dir(action_filename)# Notice: here is filename nor dir_name!!!!!!
                     self.connect1.send('upload D '+action_filename+' '+bucket)
+                    print('send: '+'upload D '+action_filename+' '+bucket)
                 else:
                     bucket = self.create_dir(action_dir_name+'/'+action_filename)
                     self.connect1.send('upload D '+action_dir_name+'/'+action_filename+' '+bucket)
+                    print('send: '+'upload D '+action_dir_name+'/'+action_filename+' '+bucket)
 
             elif (action_type == 'CRT' or action_type == 'MOD') and action_object == 'F':
                 if action_dir_name == '.':
                     bucket = self.au.find_bucket(action_dir_name)
                     self.connect1.send('upload F '+action_filename+' '+bucket)
+                    print('send: '+'upload F '+action_filename+' '+bucket)
                 else:
                     bucket = self.au.find_bucket(action_dir_name)
                     self.connect1.send('upload F '+action_dir_name+'/'+action_filename+' '+bucket)
+                    print('send: '+'upload F '+action_dir_name+'/'+action_filename+' '+bucket)
        
             elif action_type == 'DEL':
                 real_object = ''
@@ -188,25 +192,29 @@ class Client_handler(threading.Thread):
             if action_type == 'CRT' and action_object == 'D':
                 #create new directory, create a new bucket
                 if action_dir_name == '.':
-                    bucket = self.au.find_dir(action_filename)# Notice: here is filename nor dir_name!!!!!!
+                    bucket = self.au.find_bucket(action_filename)# Notice: here is filename nor dir_name!!!!!!
                 else:
-                    bucket =self.find_dir(action_dir_name+'/'+action_filename)
+                    bucket =self.find_bucket(action_dir_name+'/'+action_filename)
                     
                 self.connect1.send('download D '+action_dir_name+' '+bucket+' '+action_filename)
+                print('send: '+'download D '+action_dir_name+' '+bucket+' '+action_filename)
 
             elif (action_type == 'CRT' or action_type == 'MOD') and action_object == 'F':
-                    bucket = self.au.find_bucket(action_dir_name)
-                    self.connect1.send('download F '+action_dir_name+' '+bucket+' '+action_filename)
+                bucket = self.au.find_bucket(action_dir_name)
+                self.connect1.send('download F '+action_dir_name+' '+bucket+' '+action_filename)
+                print('send: '+ 'download F '+action_dir_name+' '+bucket+' '+action_filename)
        
             elif action_type == 'DEL':
                 if action_dir_name == '.':
                     self.connect1.send('delete '+action_object+' '+action_filename)
+                    print('send: '+'delete '+action_object+' '+action_filename)
                     if action_object == 'D':
                         new_bucket = self.au.find_bucket(action_filename)
                         self.delete_dir(action_filename)
                         self.au.remove_dir(new_bucket)
                 else:
                     self.connect1.send('delete '+action_object+' '+action_dir_name+'/'+action_filename)
+                    print('send: '+'delete '+action_object+' '+action_dir_name+'/'+action_filename)
                     if action_object == 'D':
                         new_bucket = self.au.find_bucket(action_dir_name+'/'+action_filename)
                         self.delete_dir(action_dir_name+'/'+action_filename)                    
@@ -215,7 +223,7 @@ class Client_handler(threading.Thread):
 
             response = self.connect1.recv(1024)
             if response == 'Download finished':
-                while self.task_queue.check_conflict() == False:
+                while self.task_queue.check_conflict(curr_action) == False:
                     pass
                 self.connect1.send('apply')
                 self.lock.acquire()
@@ -228,12 +236,12 @@ class Client_handler(threading.Thread):
         while True:
             action = self.connect2.recv(1024)
             #deal with share directory with other user
+            print('receive: '+action)
             if action.split()[0] == 'SHR':
                 self.share_directory(action)
                 continue
 
             tmp_act = Action(action)
-            print('Receive a request.')
             self.lock.acquire()
             if self.task_queue.push(action) == False:
 

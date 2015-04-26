@@ -243,7 +243,7 @@ def recvRequest(name, sock):
             if DorF == 'F':
                 filename = '.' + args[4]
                 d_file = os.path.join(root, path, filename)
-                s3Connecter.download(bucket, filename, d_file)
+                s3Connecter.download(bucket, args[4], d_file)
                 sock.send('Download finished')
                 res = sock.recv(1024)
                 if res == 'apply':
@@ -369,7 +369,7 @@ def main():
                 rangeToUser = "Dir to Share: -> (0 to %d)" % len(dirList)
                 shareChoice = int(raw_input(rangeToUser))
             nameToShare = raw_input("Whom to share? -> ")
-            shareinfo = 'SHR' + dirList[shareChoice] + nameToShare
+            shareinfo = 'SHR' +' '+ dirList[shareChoice] +' '+ nameToShare
             s2.send(shareinfo)
             response = s2.recv(1024)
             print response
