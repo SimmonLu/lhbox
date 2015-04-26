@@ -27,28 +27,28 @@ class MyEventHandler(pyinotify.ProcessEvent):
         print "MOVE_SELF",str(event.pathname)
 
     def process_IN_MOVED_TO(self, event):
-        mutex.acquire(1)
+        mutex.acquire()
         print "MVT",str(event.pathname)
         #print "MOVED_TO event:", event.wd
         eventList.append(("MVT",str(event.pathname)))
         mutex.release()
 
     def process_IN_MOVED_FROM(self, event):
-        mutex.acquire(1)
+        mutex.acquire()
         #print "MOVED_FROM event:", event.pathname
         print "MVF",str(event.pathname)
         eventList.append(("MVF",str(event.pathname)))
         mutex.release()
 
     def process_IN_DELETE(self, event):
-        mutex.acquire(1)
+        mutex.acquire()
         #print "DELETE event:", event.pathname
         print "DEL",str(event.pathname)
         eventList.append(("DEL",str(event.pathname)))
         mutex.release()
 
     def process_IN_MODIFY(self, event):
-        mutex.acquire(1)
+        mutex.acquire()
         print "MOD",str(event.pathname)
         if len(eventList):
             eventList.pop(0)
@@ -82,7 +82,7 @@ class eventReader(object):
     def __init__(self):
         print "eventHandler starts"
     def pEvent(self):
-        mutex.acquire(1)
+        mutex.acquire()
         print eventList.pop(0)
         mutex.release()
     def checkHide(self, path):
@@ -120,21 +120,35 @@ class eventReader(object):
         else:
             return False
 
+    def checkPathHide(self, path):
+        sections = path.split('/')
+        for sect in sections:
+            if sect == '':
+                continue
+            if sect[0] == '.':
+                return True
+        return False
+
     def parseEvent(self):
         global fileToRemove
         global eventToSend
-        mutex_s.acquire(1)
-        mutex.acquire(1)
+        mutex_s.acquire()
+        mutex.acquire()
+        if len(eventList) == 0:
+            mutex.release()
+            mutex_s.release()
+            return
         event = eventList[0]
         if event[0] == 'MVT' or event[0] == 'MVF':
             mutex.release()
-            #time.sleep(0.1)
-            mutex.acquire(1)
+            time.sleep(0.5)
+            mutex.acquire()
             event = eventList[0]
             if event[0] == 'MVT':
                 print '---CRT', event[1]
                 if not self.checkHide(event[1]):
-                    eventToSend.append(('CRT ' + event[1]))
+                    if not self.checkPathHide(event[1]):
+                        eventToSend.append(('CRT ' + event[1]))
                 eventList.pop(0)
             elif event[0] == 'MVF':
                 print '---DEL', event[1]
@@ -154,8 +168,8 @@ class eventReader(object):
             print '---'+event[0], event[1]
             eventList.pop(0)
             mutex.release()
-            #time.sleep(0.1)
-            mutex.acquire(1)
+            time.sleep(0.5)
+            mutex.acquire()
             if not self.checkHide(event[1]):
                 eventToSend.append(('MOD ' + event[1]))
             if len(eventList) > 0:
@@ -195,7 +209,7 @@ def parsePath(path):
 def sendRequest(name, sock):
 
     while True:
-        mutex_s.acquire(1)
+        mutex_s.acquire()
         if len(eventToSend) != 0:
             event = eventToSend.pop(0)
             cmd, fileType, filepath = parsePath(event)
@@ -269,12 +283,13 @@ def recvRequest(name, sock):
                         os.rename(d_f, n_f)
                     n_file = os.path.join(root, path, args[4])
                     os.rename(d_file, n_file)
+                    
 
         elif cmd == 'delete':
             DorF = args[1]
             path = args[2]
-            mutex_s.acquire(1)
-            mutex.acquire(1)
+            mutex_s.acquire()
+            mutex.acquire()
             if DorF == 'F':
                 d_file = os.path.join(root, path)
                 if os.path.exists(d_file) == False:
@@ -284,12 +299,14 @@ def recvRequest(name, sock):
                     continue
                 os.remove(d_file)
                 oriLen = len(eventList)
+                print 'oriLen: ' + str(oriLen)
                 mutex.release()
-                #time.sleep(0.1)
-                mutex.acquire(1)
+                time.sleep(0.5)
+                mutex.acquire()
                 aftLen = len(eventList)
+                print 'aftLen: ' + str(aftLen)
                 if aftLen - oriLen == 1:
-                    print 'delete in list: '+ eventList.pop(oriLen)[0] + ' ' + eventList.pop(oriLen)[1]
+                    print 'delete in list: DEL ' + eventList.pop(oriLen)[1]
                 else:
                     toRemove = ('DEL', d_file)
                     if toRemove in eventList:
@@ -310,13 +327,13 @@ def recvRequest(name, sock):
                 shutil.rmtree(d_file)
                 oriLen = len(eventList)
                 mutex.release()
-                #time.sleep(0.1)
-                mutex.acquire(1)
+                time.sleep(0.5)
+                mutex.acquire()
                 aftLen = len(eventList)
                 toRemove = ('DEL', d_file)
                 for i in range(oriLen, aftLen):
-                    if toRemove == eventList[i]:
-                        print 'delete event after remove'
+                    if eventList[i][0] == 'DEL' and (toRemove[1] in eventList[i][1]):
+                        print 'delete event after remove: DEL' + eventList[i][1]
                         del eventList[i]
             mutex.release()                
             mutex_s.release()
@@ -380,6 +397,7 @@ def main():
             count = 0
             for directory in dirList:
                 print str(count) + ': ' + directory 
+                count += 1
             shareChoice = -1
             while shareChoice < 0 or shareChoice > len(dirList):
                 rangeToUser = "Dir to Share: -> (0 to %d)" % len(dirList)

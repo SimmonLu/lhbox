@@ -62,7 +62,12 @@ class Authority(object):
         
     def find_sharer(self,bucket,username):
         print('username: '+username)
-        users = self.budb.find_one({'bucket':bucket})['users']
+        sharer = []
+        users = self.budb.find_one({'bucket':bucket})
+        if users == None:
+            print sharer
+            return sharer
+        users = users['users']
         print('users:')
         print users
         try:users.remove(username)

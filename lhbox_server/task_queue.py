@@ -35,12 +35,17 @@ class Task_Queue(object):
     #push a action into task queue    
     def push(self, action):
         act = Action(action)
-        if len(filter(lambda x: x['action'].is_same(act) == True and x['source'] == 'share', self.task_queue)) == 0:
+        if act.type != 'DEL':
+            if len(filter(lambda x: x['action'].is_same(act) == True and x['source'] == 'share', self.task_queue)) == 0:
+                self.task_queue.append({'action':act,'source':'self'})
+                return True
+            else:
+                self.task_queue.append({'action':act,'source':'conflict'})
+                return False
+        else:
             self.task_queue.append({'action':act,'source':'self'})
             return True
-        else:
-            self.task_queue.append({'action':act,'source':'conflict'})
-            return False
+            
     
     def check_conflict(self,action):
         if len(filter(lambda x: x['action'].is_same(action) == True and x['source'] == 'conflict', self.task_queue)) == 0:

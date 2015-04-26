@@ -350,6 +350,7 @@ class Client_handler(threading.Thread):
                 for i in new_sharer:
                     sharer_tq = Task_Queue(i)
                     #change dir_name to new user's dir_name
+                    sharer_au = Authority(i)
                     new_dir_name = sharer_au.find_dir(new_bucket)
                     str_action = 'DEL D '+new_dir_name
                     action = Action(str_action)
