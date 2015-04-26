@@ -113,7 +113,10 @@ class Action(object):
         return self.dir_name
             
     def change_dir(self,dir_name):
-        return self.type+' '+self.object+' '+dir_name+' '+self.filename
+        if dir_name == '.':            
+            return self.type+' '+self.object+' '+self.filename
+        else:
+            return self.type+' '+self.object+' '+dir_name+'/'+self.filename
         
     def change_object(self,object):
         self.object = object
