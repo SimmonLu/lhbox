@@ -294,8 +294,12 @@ def recvRequest(name, sock):
                     toRemove = ('DEL', d_file)
                     if toRemove in eventList:
                         eventList.remove(toRemove)
+                        print 'delete event after remove'
                     else:
-                        print 'no delete after remove'
+                        print 'no delete after remove. eventList:'
+                        print eventList
+                        print 'toRemove:'
+                        print toRemove
             elif DorF == 'D':
                 d_file = os.path.join(root, path)
                 if os.path.exists(d_file) == False:
@@ -312,6 +316,7 @@ def recvRequest(name, sock):
                 toRemove = ('DEL', d_file)
                 for i in range(oriLen, aftLen):
                     if toRemove == eventList[i]:
+                        print 'delete event after remove'
                         del eventList[i]
             mutex.release()                
             mutex_s.release()
