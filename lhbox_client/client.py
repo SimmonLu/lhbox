@@ -255,16 +255,16 @@ def recvRequest(name, sock):
                 os.mkdir(d_file)
                 fileList = s3Connecter.lsfile(bucket)
                 for f in fileList:
-                    new_f = '.' + f
+                    new_f = '.' + f.name
                     d_f = os.path.join(d_file, new_f)
-                    s3Connecter.download(bucket, f, d_f)
+                    s3Connecter.download(bucket, f.name, d_f)
                 sock.send('Download finished')
                 res = sock.recv(1024)
                 if res == 'apply':
                     for f in fileList:
-                        new_f = '.' + f
+                        new_f = '.' + f.name
                         d_f = os.path.join(d_file, new_f)
-                        n_f = os.path.join(d_file, f)
+                        n_f = os.path.join(d_file, f.name)
                         os.rename(d_f, n_f)
                     n_file = os.path.join(root, path, args[4])
                     os.rename(d_file, n_path)
@@ -276,6 +276,9 @@ def recvRequest(name, sock):
             mutex.acquire(1)
             if DorF == 'F':
                 d_file = os.path.join(root, path)
+                if os.path.exists(d_file) == False:
+                    print 'File to delete does not exist '
+                    continue
                 os.remove(d_file)
                 oriLen = len(eventList)
                 mutex.release()
@@ -283,7 +286,7 @@ def recvRequest(name, sock):
                 mutex.acquire(1)
                 aftLen = len(eventList)
                 if aftLen - oriLen == 1:
-                    print 'delete in list: '+ eventList.pop(oriLen)
+                    print 'delete in list: '+ eventList.pop(oriLen)[0] + ' ' + eventList.pop(oriLen)[1]
                 else:
                     toRemove = 'DELETE event: ' + d_file
                     if toRemove in eventList:
@@ -292,6 +295,9 @@ def recvRequest(name, sock):
                         print 'no delete after remove'
             elif DorF == 'D':
                 d_file = os.path.join(root, path)
+                if os.path.exists(d_file) == False:
+                    print 'File to delete does not exist '
+                    continue
                 shutil.rmtree(d_file)
                 oriLen = len(eventList)
                 mutex.release()

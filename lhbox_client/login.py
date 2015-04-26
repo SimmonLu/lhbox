@@ -20,7 +20,10 @@ class logIN(object):
         if res == 'fail':
             return 'fail'
         elif res == 'success':
-            return '/home/simon/Documents/devilbox'
+            if self.username == 'jingxiong':
+                return '/home/simon/Documents/devilbox'
+            elif self.username == 'xinlu':
+                return '/home/simon/Documents/devilbox2'
         
   
                 
