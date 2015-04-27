@@ -92,6 +92,8 @@ class eventReader(object):
         else:
             return False
     def checkRename(self):
+        print "eventList in checkRename:"
+        print eventList
         if len(eventList) < 2:
             return False
         currEvent = eventList[0]
@@ -343,15 +345,17 @@ def main():
     print "Welcome to DevilBOX."
     #    global eventList
     # watch manager
-
-    hostname = '127.0.0.1'
+    
+    hostname = 'colab-sbx-207.oit.duke.edu'
+    IP = socket.gethostbyname(hostname)
+    print IP
     port1 = 8000
     s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s1.connect((hostname, port1))
+    s1.connect((IP, port1))
 
     port2 = 8001
     s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s2.connect((hostname, port2))
+    s2.connect((IP, port2))
 
     global root 
     global username
@@ -362,7 +366,7 @@ def main():
         password = raw_input("Password: -> ")
         userPath = logIN(username, password, s1, lors)
         res = userPath.checkIN()
-        if res == 'fail':
+        if res == 'fail' or res == 'wrong_input':
             print 'Login failed, try again'
         else:
             root = res

@@ -15,6 +15,8 @@ class logIN(object):
             header = 'log'
         elif self.login_or_sign == 's':
             header = 'sign'
+        else:
+            return 'wrong_input'
         self.sock.send((header + ' ' + self.username + ' ' + self.password))
         res = self.sock.recv(1024)
         if res == 'fail':
