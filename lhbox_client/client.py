@@ -18,8 +18,7 @@ wm = pyinotify.WatchManager()
 fileToRemove = -1
 username = ''
 root = ''
-access_key = 'AKIAJGCZ2F45AZJQ2UGA'
-secret_key = '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'
+
 
 class MyEventHandler(pyinotify.ProcessEvent):
 

@@ -2,8 +2,6 @@ from boto.s3.connection import S3Connection
 from boto.s3.bucketlistresultset import BucketListResultSet
 from boto.s3.key import Key
 
-access_key = 'AKIAJGCZ2F45AZJQ2UGA'
-secret_key = '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'
 
 class S3(object):
     def __init__(self, access_key, secret_key):

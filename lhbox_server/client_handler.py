@@ -5,8 +5,6 @@ from authority import Authority
 from task_queue import Task_Queue, Action
 import socket
 
-access_key = 'AKIAJGCZ2F45AZJQ2UGA'
-secret_key = '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'
 
 class Client_handler(threading.Thread):  
     def __init__(self):
