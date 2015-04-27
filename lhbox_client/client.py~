@@ -174,8 +174,8 @@ class eventReader(object):
             mutex.acquire()
             if not self.checkHide(event[1]):
                 eventToSend.append(('MOD ' + event[1]))
-            #if len(eventList) > 0:
-            #    eventList.pop(0)
+            if len(eventList) > 0:
+                eventList.pop(0)
         elif event[0] == 'DEL':
             print '---'+event[0], event[1]
             if not self.checkHide(event[1]):

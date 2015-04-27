@@ -22,9 +22,9 @@ class logIN(object):
         if res == 'fail':
             return 'fail'
         elif res == 'success':
-            if self.username == 'user1':
+            if self.username == 'blue':
                 return '/home/simon/Desktop/devilbox'
-            elif self.username == 'user2':
+            elif self.username == 'red':
                 return '/home/simon/Desktop/devilbox2'
         
   
